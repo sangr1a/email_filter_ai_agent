@@ -21,50 +21,31 @@ def read_email_from_file(file_path: str):
         lines = file.readlines()
     sender = lines[0].strip()
     subject = lines[2].strip()
-    content = " ".join(line.strip() for line in lines[3:])
+    content = " ".join(line.strip() for line in lines[4:])
     return subject, sender, content
 
 # Функция для анализа важности письма
-def analyze_email(subject: str, sender: str, content: str) -> str:
-    """Анализирует письмо и определяет его важность с учетом босса и триггерных слов."""
+def analyze_email(subject: str, sender: str, content: str):
+    """Анализирует письмо и маркирует его в зависимости от отправителя и триггерных слов."""
     sender_boss = sender in BOSSES
     trigger_word = any(word in content.lower() for word in TRIGGER_WORDS)
     
-    # Определение важности письма
+    # Определение типа письма
     if sender_boss and trigger_word:
-        importance_level = "высокая"
-    elif sender_boss or trigger_word:
-        importance_level = "средняя"
+        label = "mail_boss_and_trigger"
+        prompt_text = "Ты системный инженер. Тебе пришло уведомление от важного человека (начальника или иной высокой должности) о сбое в системе. С учетом известных случаев подобных сбоев составь пользователю план действий по решению проблемы. Ответ должен быть адресован пользователю, а ответ должен начинаться и писаться в духе персонажа Сберкот"
+    elif sender_boss:
+        label = "mail_boss"
+        prompt_text = "Тебе пришло письмо от важного человека (начальника или иной высокой должности). Внимательно изучи письмо и напиши краткое изложение. Предложи пользователю варианты ответа в таком формате: answer_1[текст]...answer_2[текст]"
+    elif trigger_word:
+        label = "mail_trigger"
+        prompt_text = "Ты системный инженер. Тебе пришло уведомление о сбое в системе, предложи пользователю несколько вариантов решения проблемы.  Ответ должен быть адресован пользователю, а ответ должен начинаться и писаться в духе персонажа Сберкот."
     else:
-        importance_level = "низкая"
+        label = "mail_simple"
+        prompt_text = ""
     
-    return f"Важность письма: {importance_level} (Босс: {sender_boss}, Триггерное слово: {trigger_word})"
-
-# Пример использования
-if __name__ == "__main__":
-    file_path = "email_test_v1/email5.txt"  # Укажите путь к файлу с письмом
-    subject, sender, content = read_email_from_file(file_path)
-    importance = analyze_email(subject, sender, content)
-    print("Результат анализа:", importance)
-
-
-# Пример использования
-# if __name__ == "__main__":
-#     subject = "Срочное обновление проекта"
-#     sender = "Иван Петров"
-#     position = "Менеджер проекта"
-#     content = "Добрый день! У нас изменились сроки сдачи проекта, необходимо срочно обсудить изменения."  
-    
-#     importance = analyze_email(subject, sender, position, content)
-#     print("Результат анализа:", importance)
-
-# if __name__ == "__main__":
-#     subject = "АБВ или ГДЕ"
-#     sender = "Иван Иванов"
-#     position = "Бот уведомлений"
-#     content = "Доброе утро! В сегодняшнем дайджесте узнаете, чем АБВ отличается от ГДЕ "  
-    
-#     importance = analyze_email(subject, sender, position, content)
-#     print("Результат анализа:", importance)
-
-#доработать: подаем только тек
+    if prompt_text:
+        response = giga([HumanMessage(content=prompt_text)])
+        return f"Маркировка: {label}\nОтвет GigaChat: {response.content}"
+    else:
+        return f"Маркировка: {label} (Нет необходимости в ответе)"
